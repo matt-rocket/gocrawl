@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"io/ioutil"
+	"time"
 )
 
 
@@ -12,21 +13,12 @@ import (
 //}
 
 
-func urlMaker(urlCh chan string) {
+func seedUrlMaker(urlCh chan string) {
 	urls := []string{"http://www.google.com", "http://www.dbc.dk", "http://www.nets.dk", "http://www.dr.dk"}
 
-
-	i := 0
-	for {
-		url := urls[i]
-		i += 1
-		if i >= len(urls){
-			i = 0
-		}
+	for _, url := range urls {
 		urlCh <- url
 	}
-
-	close(urlCh)
 }
 
 
@@ -50,12 +42,20 @@ func getPage(url string) (string, error) {
 
 func getter(urlCh chan string, pageCh chan string) {
 	for {
-		url := <- urlCh
+		url := <-urlCh
 		page, err := getPage(url)
 		if err != nil {
 			page = ""
 		}
 		pageCh <- page
+	}
+}
+
+
+func parser(pageCh chan string, urlCh chan string) {
+	for {
+		page := <- pageCh
+		fmt.Println(len(page))
 	}
 }
 
@@ -68,30 +68,12 @@ func main() {
 
 	pageCh := make(chan string)
 
-	go urlMaker(urlCh)
+	go seedUrlMaker(urlCh)
 
 	go getter(urlCh, pageCh)
 
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
-	fmt.Println(len(<-pageCh))
+	go parser(pageCh, urlCh)
 
+	time.Sleep(time.Millisecond * 3000)
 }
+
