@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"io/ioutil"
+	"strings"
+	"golang.org/x/net/html"
 )
 
 
@@ -53,8 +55,35 @@ func Getter(urlCh chan string, pageCh chan string) {
 
 
 func extractLinkUrls(page string) []string {
-	return []string{"bla", "blabla"}
+
+	z := html.NewTokenizer(strings.NewReader(page))
+
+	hrefs := make([]string, 10)
+
+	for {
+		tt := z.Next()
+
+		switch {
+		case tt == html.ErrorToken:
+			// End of the document, we're done
+			return hrefs
+		case tt == html.StartTagToken:
+			t := z.Token()
+			isAnchor := t.Data == "a"
+			if isAnchor {
+				// we found a link
+				attributes := t.Attr
+				for _, attr := range attributes {
+					if attr.Key == "href" {
+						href := attr.Val
+						hrefs = append(hrefs, href)
+					}
+				}
+			}
+		}
+	}
 }
+
 
 func Parser(pageCh chan string, urlCh chan string) {
 	for {
