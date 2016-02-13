@@ -90,12 +90,14 @@ func extractUrls(resp *http.Response) ([]*url.URL, error) {
 
 						if extractedUrl.Host == "" {
 							// fill in the blanks if url is relative
-							 extractedUrl = response.Request.Host
+							//extractedUrl.Host = string(response.Request.Host)
+							baseUrl := response.Request.URL
+
+							extractedUrl.Host = baseUrl.Host
+							extractedUrl.Scheme = baseUrl.Scheme
 						}
 
-						fmt.Println(url)
-
-						urls = append(urls, url)
+						urls = append(urls, extractedUrl)
 					}
 				}
 			}
@@ -109,7 +111,7 @@ func Parser(responseCh chan *http.Response, urlCh chan *url.URL) {
 		resp := <-responseCh
 		urls, err := extractUrls(resp)
 		if err != nil {
-			fmt.Println("Got error while exxtracting urls")
+			fmt.Println("Got error while extracting urls")
 		}
 		fmt.Println(urls)
 	}
