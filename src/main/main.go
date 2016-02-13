@@ -3,6 +3,8 @@ package main
 import (
 	"time"
 	"crawler"
+	"net/http"
+	"net/url"
 )
 
 type persons []int
@@ -23,16 +25,16 @@ func main() {
 	//	http.HandleFunc("/", handler)
 	//	http.ListenAndServe(":8080", nil)
 
-	urlCh := make(chan string)
+	urlCh := make(chan *url.URL)
 
-	pageCh := make(chan string)
+	responseCh := make(chan *http.Response)
 
 	go crawler.SeedUrlMaker(urlCh)
 
-	go crawler.Getter(urlCh, pageCh)
+	go crawler.Getter(urlCh, responseCh)
 
-	go crawler.Parser(pageCh, urlCh)
+	go crawler.Parser(responseCh, urlCh)
 
-	time.Sleep(time.Millisecond * 10000)
+	time.Sleep(time.Millisecond * 1000)
 }
 

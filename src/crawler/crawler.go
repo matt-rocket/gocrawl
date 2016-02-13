@@ -3,7 +3,9 @@ package crawler
 
 import (
 	"fmt"
+	"os"
 	"net/http"
+	"net/url"
 	"io/ioutil"
 	"strings"
 	"golang.org/x/net/html"
@@ -15,50 +17,56 @@ import (
 //}
 
 
-func SeedUrlMaker(urlCh chan string) {
+func SeedUrlMaker(urlCh chan *url.URL) {
 	urls := []string{"http://www.google.com", "http://www.dbc.dk", "http://www.nets.dk", "http://www.dr.dk"}
 
-	for _, url := range urls {
-		urlCh <- url
+	for _, seedUrl := range urls {
+		u, err := url.Parse(seedUrl)
+		if err != nil {
+			fmt.Println("Could not parse seed url")
+			os.Exit(1)
+		} else {
+			urlCh <- u
+		}
 	}
 }
 
 
-func getPage(url string) (string, error) {
-	resp, err := http.Get(url)
+func getHttpResponse(url *url.URL) (*http.Response, error) {
+	resp, err := http.Get(url.String())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	page := string(body)
-
-	return page, nil
+	return resp, nil
 }
 
 
-func Getter(urlCh chan string, pageCh chan string) {
+func Getter(urlCh chan *url.URL, responseCh chan *http.Response) {
 	for {
 		url := <-urlCh
-		page, err := getPage(url)
+		resp, err := getHttpResponse(url)
 		if err != nil {
-			page = ""
+			resp = nil
 		}
-		pageCh <- page
+		responseCh <- resp
 	}
 }
 
 
-func extractLinkUrls(page string) []string {
 
-	z := html.NewTokenizer(strings.NewReader(page))
+func extractUrls(resp *http.Response) ([]*url.URL, error) {
 
-	hrefs := make([]string, 10)
+	urls := make([]*url.URL, 0)
+
+	response := *resp
+
+	// TODO: the next lines can be simplified
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return urls, err
+	}
+	z := html.NewTokenizer(strings.NewReader(string(body)))
 
 	for {
 		tt := z.Next()
@@ -66,7 +74,7 @@ func extractLinkUrls(page string) []string {
 		switch {
 		case tt == html.ErrorToken:
 			// End of the document, we're done
-			return hrefs
+			return urls, nil
 		case tt == html.StartTagToken:
 			t := z.Token()
 			isAnchor := t.Data == "a"
@@ -75,8 +83,19 @@ func extractLinkUrls(page string) []string {
 				attributes := t.Attr
 				for _, attr := range attributes {
 					if attr.Key == "href" {
-						href := attr.Val
-						hrefs = append(hrefs, href)
+						extractedUrl, err := url.Parse(attr.Val)
+						if err != nil {
+							return nil, err
+						}
+
+						if extractedUrl.Host == "" {
+							// fill in the blanks if url is relative
+							 extractedUrl = response.Request.Host
+						}
+
+						fmt.Println(url)
+
+						urls = append(urls, url)
 					}
 				}
 			}
@@ -85,9 +104,13 @@ func extractLinkUrls(page string) []string {
 }
 
 
-func Parser(pageCh chan string, urlCh chan string) {
+func Parser(responseCh chan *http.Response, urlCh chan *url.URL) {
 	for {
-		page := <- pageCh
-		fmt.Println(extractLinkUrls(page))
+		resp := <-responseCh
+		urls, err := extractUrls(resp)
+		if err != nil {
+			fmt.Println("Got error while exxtracting urls")
+		}
+		fmt.Println(urls)
 	}
 }
