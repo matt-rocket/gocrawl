@@ -29,12 +29,11 @@ func main() {
 
 	responseCh := make(chan *http.Response)
 
-	go crawler.SeedUrlMaker(urlCh)
+	go crawler.SeedUrlLoader(urlCh)
 
 	go crawler.Getter(urlCh, responseCh)
 
 	go crawler.Parser(responseCh, urlCh)
 
-	time.Sleep(time.Millisecond * 1000)
+	time.Sleep(time.Millisecond * 10000)
 }
-
